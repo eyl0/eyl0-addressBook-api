@@ -12,7 +12,7 @@ using contactsAPI.Data;
 namespace contactsAPI.Migrations
 {
     [DbContext(typeof(ContactsAPIDbContext))]
-    [Migration("20240322032343_Initial Migration")]
+    [Migration("20240325025401_Initial Migration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -43,8 +43,9 @@ namespace contactsAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long>("Phone")
-                        .HasColumnType("bigint");
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

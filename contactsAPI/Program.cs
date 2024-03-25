@@ -1,5 +1,6 @@
 using contactsAPI.Data;
 using Microsoft.EntityFrameworkCore;
+// using Microsoft.EntityFrameworkCore.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +12,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // builder.Services.AddDbContext<ContactsAPIDbContext>(options => options.UseInMemoryDatabase("ContactsDB"));
+
 builder.Services.AddDbContext<ContactsAPIDbContext>(options => 
-options.UseSqlServer(builder.Configuration.GetConnectionString("ContactsApiConnectionString")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("ContactsApiConnectionString")));
 
 var app = builder.Build();
 
