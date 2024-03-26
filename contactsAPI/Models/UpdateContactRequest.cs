@@ -1,4 +1,6 @@
-﻿namespace contactsAPI.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace contactsAPI.Models
 {
     public class UpdateContactRequest
     {
@@ -6,7 +8,7 @@
 
         public string Email { get; set; }
 
-        public long Phone { get; set; }
+        public string Phone { get; set; }
 
         public string Address { get; set; }
 
