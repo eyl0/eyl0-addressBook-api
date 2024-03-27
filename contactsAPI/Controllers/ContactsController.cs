@@ -1,9 +1,6 @@
-﻿using System;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using contactsAPI.Models;
 using contactsAPI.Service;
-using System.Threading.Tasks;
-using System.Linq;
 
 namespace contactsAPI.Controllers
 {
@@ -19,74 +16,102 @@ namespace contactsAPI.Controllers
         }
 
         [HttpGet("getAll")]
-        public async Task<IActionResult> GetContacts()
+        public async Task<ActionResult> GetAllContactsAsync()
         {
-            var contacts = await _contactService.GetAllContactsAsync();
-
-            if (contacts == null || !contacts.Any())
+            try
             {
-                return NotFound(new { message = "No contacts found" });
+                var contact = await _contactService.GetAllContactsAsync();
+                return Ok(contact);
             }
-            return Ok(contacts);
+            catch (ArgumentNullException err)
+            {
+                return NotFound(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetContactById(Guid id)
+        [HttpGet("getById/{id}")]
+        public async Task<ActionResult<Contact>> GetContactByIdAsync(Guid id)
         {
-            var contact = await _contactService.GetContactByIdAsync(id);
-
-            if (contact == null)
+            try
             {
-                return NotFound(new { message = "Contact not found" });
+                var contact = await _contactService.GetContactByIdAsync(id);
+                return Ok(contact);
             }
-            return Ok(contact);
+            catch (ArgumentNullException err)
+            {
+                return NotFound(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddContact([FromBody] AddContactRequest addContactRequest)
+        [HttpPost("create")]
+        public async Task<ActionResult<Contact>> AddContactAsync([FromBody] AddContactRequest addContactRequest)
         {
-            var contact = await _contactService.AddContactAsync(addContactRequest);
-
-            if (contact == null)
+            try
             {
-                return BadRequest(new { message = "Failed to add contact" });
+                var contact = await _contactService.AddContactAsync(addContactRequest);
+                return Ok(new { id = contact.Id, message = "Contact added successfully!"});
             }
-            return Ok(new { id = contact.Id, message = "Contact added successfully!" });
+            catch (ArgumentNullException err)
+            {
+                return BadRequest(new { error = err.Message });
+            }
+            catch (ArgumentException err)
+            {
+                return BadRequest(new { message = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = "InternalError", message = err.Message });
+            }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateContact([FromBody] UpdateContactRequest updateContactRequest)
+
+        [HttpPut("edit/{id}")]
+        public async Task<ActionResult> UpdateContactAsync([FromRoute] Guid id, [FromBody] UpdateContactRequest updateContactRequest)
         {
-            var contact = await _contactService.GetContactByIdAsync(id);
-
-            if (contact == null)
+            try
             {
-                return NotFound(new { message = "Contact not found" });
+                var contact = await _contactService.UpdateContactAsync(id, updateContactRequest);
+                return Ok(new { id = contact.Id, message = "Contact updated successfully" });
             }
-
-            contact.Name = updateContactRequest.Name;
-            contact.Email = updateContactRequest.Email;
-            contact.Phone = updateContactRequest.Phone;
-            contact.Address = updateContactRequest.Address;
-
-            await _contactService.UpdateContactAsync(contact);
-
-            return Ok(new { id = contact.Id, message = "Contact updated successfully!" });
+            catch (ArgumentNullException err)
+            {
+                return BadRequest(new { error = err.Message });
+            }
+            catch (ArgumentException err)
+            {
+                return BadRequest(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteContact(Guid id)
+        [HttpDelete("delete/{id}")]
+        public async Task<ActionResult> DeleteContact(Guid id)
         {
-            var contact = await _contactService.GetContactByIdAsync(id);
-
-            if (contact == null)
+            try
             {
-                return NotFound(new { message = "Contact not found" });
+                var deletedContactId = await _contactService.DeleteContactAsync(id);
+                return Ok(new { id = deletedContactId, message = "Contact deleted successfully"});
             }
-
-            await _contactService.DeleteContactAsync(id);
-
-            return Ok(new { message = "Contact deleted successfully!" });
+            catch (ArgumentNullException err)
+            {
+                return NotFound(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
     }
 }
