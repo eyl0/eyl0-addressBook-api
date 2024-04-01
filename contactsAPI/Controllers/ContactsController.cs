@@ -1,193 +1,117 @@
-﻿using contactsAPI.Data;
+﻿using Microsoft.AspNetCore.Mvc;
 using contactsAPI.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
+using contactsAPI.Service;
 
 namespace contactsAPI.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
-    public class ContactsController : Controller
+    [ApiController]
+    public class ContactsController : ControllerBase
     {
-        private readonly ContactsAPIDbContext dbContext;
+        private readonly IContactService _contactService;
 
-        public ContactsController(ContactsAPIDbContext dbContext) 
+        public ContactsController(IContactService contactService)
         {
-            this.dbContext = dbContext;
+            _contactService = contactService;
         }
 
         [HttpGet("getAll")]
-        public async Task<IActionResult> GetContacts()
+        public async Task<ActionResult> GetAllContactsAsync()
         {
-            var contact = await dbContext.Contacts.ToListAsync();
-
-            if (contact == null || contact.Count == 0)
+            try
             {
-                return NotFound(new { message = "No contacts found" });
-            } 
-            return Ok(contact);
+                var contact = await _contactService.GetAllContactsAsync();
+                return Ok(contact);
+            }
+            catch (ArgumentNullException err)
+            {
+                return NotFound(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
 
-        [HttpGet]
-        [Route("getById/{id:guid}")]
-        public async Task<IActionResult> GetContact([FromRoute] Guid id)
+        [HttpGet("getById/{id}")]
+        public async Task<ActionResult<Contact>> GetContactByIdAsync(Guid id)
         {
-            var contact = await dbContext.Contacts.FindAsync(id);
-
-            if (contact == null)
+            try
             {
-                return NotFound(new { message = "Contact not found, Id does not exist." });
+                var contact = await _contactService.GetContactByIdAsync(id);
+                return Ok(contact);
             }
-            return Ok(contact);
+            catch (ArgumentNullException err)
+            {
+                return NotFound(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> AddContact([FromBody] AddContactRequest addContactRequest)
+        public async Task<ActionResult<Contact>> AddContactAsync([FromBody] AddContactRequest addContactRequest)
         {
-            // Validate Name (Required and Length)
-            if (string.IsNullOrWhiteSpace(addContactRequest.Name))
+            try
             {
-                return BadRequest(new { message = "Name is required." });
+                var contact = await _contactService.AddContactAsync(addContactRequest);
+                return Ok(new { id = contact.Id, message = "Contact added successfully!"});
             }
-            else if (addContactRequest.Name.Length < 2 || addContactRequest.Name.Length > 50)
+            catch (ArgumentNullException err)
             {
-                return BadRequest(new { message = "Name must be between 2 and 50 characters." });
+                return BadRequest(new { error = err.Message });
             }
-            // Validate Email (Required and Format)
-            if (string.IsNullOrWhiteSpace(addContactRequest.Email) || addContactRequest.Email == null)
+            catch (ArgumentException err)
             {
-                return BadRequest(new { message = "Email is required." });
+                return BadRequest(new { message = err.Message });
             }
-            else if (!IsValidEmail(addContactRequest.Email))
+            catch (Exception err)
             {
-                return BadRequest(new { message = "Invalid email format." });
+                return StatusCode(500, new { error = "InternalError", message = err.Message });
             }
-            // Validate Phone (Required and Format)
-            if (string.IsNullOrWhiteSpace(addContactRequest.Phone) || addContactRequest.Phone == null)
-            {
-                return BadRequest(new { message = "Phone is required." });
-            }
-            else if (!IsValidPhoneNumber(addContactRequest.Phone))
-            {
-                return BadRequest(new { message = "Invalid phone number format." });
-            }
-            // Validate Address (Required)
-            if (string.IsNullOrWhiteSpace(addContactRequest.Address) || addContactRequest.Address == null)
-            {
-                return BadRequest(new { message = "Address is required." });
-            }
-
-            var contact = new Contact()
-            {
-                Id = Guid.NewGuid(),
-                Name = addContactRequest.Name,
-                Email = addContactRequest.Email,
-                Phone = addContactRequest.Phone,
-                Address = addContactRequest.Address
-            };
-
-            await dbContext.Contacts.AddAsync(contact);
-            await dbContext.SaveChangesAsync();
-
-            return Ok(new { id = contact.Id, message = "Contact added successfully!" });
         }
 
-        [HttpPut]
-        [Route("edit/{id:guid}")]
-        public async Task<IActionResult> UpdateContact([FromRoute] Guid id, UpdateContactRequest updateContactRequest) 
+
+        [HttpPut("edit/{id}")]
+        public async Task<ActionResult> UpdateContactAsync([FromRoute] Guid id, [FromBody] UpdateContactRequest updateContactRequest)
         {
-
-            var contact = await dbContext.Contacts.FindAsync(id);
-
-            if (contact != null)
+            try
             {
-                // Validate Name (Required and Length)
-                if (string.IsNullOrWhiteSpace(updateContactRequest.Name))
-                {
-                    return BadRequest(new { message = "Name is required." });
-                }
-                else if (updateContactRequest.Name.Length < 2 || updateContactRequest.Name.Length > 50)
-                {
-                    return BadRequest(new { message = "Name must be between 2 and 50 characters." });
-                }
-                // Validate Phone (Required and Format)
-                if (string.IsNullOrWhiteSpace(updateContactRequest.Email))
-                {
-                    return BadRequest(new { message = "Email is required." });
-                }
-                else if (!IsValidEmail(updateContactRequest.Email))
-                {
-                    return BadRequest(new { message = "Invalid email format." });
-                }
-                // Validate Phone (Required and Format)
-                if (string.IsNullOrWhiteSpace(updateContactRequest.Phone))
-                {
-                    return BadRequest(new { message = "Phone is required." });
-                }
-                else if (!IsValidPhoneNumber(updateContactRequest.Phone))
-                {
-                    return BadRequest(new { message = "Invalid phone number format." });
-                }
-                // Validate Address (Required)
-                if (string.IsNullOrWhiteSpace(updateContactRequest.Address))
-                {
-                    return BadRequest(new { message = "Address is required." });
-                }
-
-                contact.Name = updateContactRequest.Name;
-                contact.Email = updateContactRequest.Email;
-                contact.Phone = updateContactRequest.Phone;
-                contact.Address = updateContactRequest.Address;
-
-                await dbContext.SaveChangesAsync();
-
-                return Ok(new { id = contact.Id, message = "Contact updated successfully!" });
+                var contact = await _contactService.UpdateContactAsync(id, updateContactRequest);
+                return Ok(new { id = contact.Id, message = "Contact updated successfully" });
             }
-             return NotFound(new { message = "Contact not found, Id does not exist." });
+            catch (ArgumentNullException err)
+            {
+                return BadRequest(new { error = err.Message });
+            }
+            catch (ArgumentException err)
+            {
+                return BadRequest(new { error = err.Message });
+            }
+            catch (Exception err)
+            {
+                return StatusCode(500, new { error = err.Message });
+            }
         }
 
-        [HttpDelete]
-        [Route("delete/{id:guid}")]
-        public async Task<IActionResult> DeleteContact([FromRoute] Guid id)
+        [HttpDelete("delete/{id}")]
+        public async Task<ActionResult> DeleteContact(Guid id)
         {
-            var contact = await dbContext.Contacts.FindAsync(id);
-
-            if (contact != null) 
+            try
             {
-                dbContext.Remove(contact);
-                await dbContext.SaveChangesAsync();
-
-                return Ok(new { id = contact.Id, message = "Contact deleted successfully!" });
+                var deletedContactId = await _contactService.DeleteContactAsync(id);
+                return Ok(new { id = deletedContactId, message = "Contact deleted successfully"});
             }
-            return NotFound(new { message = "Contact not found, Id does not exist." });
-        }
-        private bool IsValidEmail(string email)
-        {
-            // Use regular expression to check if the email matches the specified format
-            if (Regex.IsMatch(email, @"^[a-zA-Z0-9_.+-]+@gmail.com$"))
+            catch (ArgumentNullException err)
             {
-                return true;
+                return NotFound(new { error = err.Message });
             }
-            else
+            catch (Exception err)
             {
-                return false;
+                return StatusCode(500, new { error = err.Message });
             }
-        }
-        private bool IsValidPhoneNumber(string phoneNumber)
-        {
-            // Check if the phone number matches the 11-digit format starting with "09"
-            if (Regex.IsMatch(phoneNumber, @"^09\d{9}$"))
-            {
-                return true;
-            }
-            // Check if the phone number matches the format with country code "+63"
-            if (Regex.IsMatch(phoneNumber, @"^\+63\d{10}$"))
-            {
-                return true;
-            }
-            // If the phone number does not match any of the valid formats, return false
-            return false;
         }
     }
 }
